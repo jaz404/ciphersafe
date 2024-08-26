@@ -1,5 +1,5 @@
 // EncryptionUtils.java
-package com.example.myapplication;
+package com.ciphersafe;
 
 import android.util.Base64;
 

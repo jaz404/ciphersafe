@@ -1,4 +1,4 @@
-package com.example.myapplication;
+package com.ciphersafe;
 
 // AppDatabase.java
 import androidx.room.Database;

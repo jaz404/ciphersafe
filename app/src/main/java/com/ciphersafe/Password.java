@@ -1,4 +1,4 @@
-package com.example.myapplication;
+package com.ciphersafe;
 
 // Password.java
 import androidx.room.Entity;

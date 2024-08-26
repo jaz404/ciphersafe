@@ -1,6 +1,5 @@
-package com.example.myapplication;
+package com.ciphersafe;
 
-import android.content.Context;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;

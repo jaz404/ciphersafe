@@ -1,4 +1,4 @@
-package com.example.myapplication;
+package com.ciphersafe;
 
 // PasswordDao.java
 import androidx.room.Dao;

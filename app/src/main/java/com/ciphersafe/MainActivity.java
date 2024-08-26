@@ -1,4 +1,4 @@
-package com.example.myapplication;
+package com.ciphersafe;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
