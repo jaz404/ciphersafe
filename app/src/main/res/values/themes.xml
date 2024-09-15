@@ -2,7 +2,18 @@
     <!-- Base application theme. -->
     <style name="Base.Theme.MyApplication" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+
+        <!-- Set the primary color (this affects AppBar and other UI elements) -->
+        <item name="colorPrimary">@color/black</item>
+
+        <!-- Set the variant of the primary color (affects the status bar) -->
+        <item name="colorPrimaryVariant">@color/white</item>
+
+        <!-- Explicitly set the status bar color (works for API 21 and above) -->
+        <item name="android:statusBarColor">@color/black</item>
+
+        <!-- Use false to show light icons on the dark status bar -->
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 
     <style name="Theme.MyApplication" parent="Base.Theme.MyApplication" />

@@ -8,6 +8,8 @@ import android.widget.BaseAdapter;
 import android.widget.TextView;
 
 import java.util.List;
+import java.util.ArrayList;
+
 public class CustomAdapter extends BaseAdapter {
 
     private Context context;
@@ -15,7 +17,7 @@ public class CustomAdapter extends BaseAdapter {
 
     public CustomAdapter(Context context, List<String[]> dataList) {
         this.context = context;
-        this.dataList = dataList;
+        this.dataList = new ArrayList<>(dataList);
     }
 
     @Override
@@ -47,11 +49,20 @@ public class CustomAdapter extends BaseAdapter {
         accountNameTextView.setText(data[0]);
         usernameTextView.setText(data[1]);
 
+        // Set the click listener on the entire item view (convertView)
+        convertView.setOnClickListener(v -> {
+            if (context instanceof MainActivity) {
+                ((MainActivity) context).showPasswordDetails(data[0]);
+            }
+        });
+
         return convertView;
     }
 
+
     public void updateData(List<String[]> newDataList) {
-        dataList = newDataList;
+        dataList.clear();
+        dataList.addAll(newDataList);
         notifyDataSetChanged();
     }
 }

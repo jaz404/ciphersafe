@@ -58,19 +58,40 @@ public class PolicyAcceptanceFragment extends Fragment {
         return view;
     }
 
-    private void removeFragment() {
-        if (isAdded()) {
-            FragmentManager fragmentManager = getParentFragmentManager();
-            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+//    private void removeFragment() {
+//        if (isAdded()) {
+//            FragmentManager fragmentManager = getParentFragmentManager();
+//            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+//
+//            // Remove the PolicyAcceptanceFragment
+//            fragmentTransaction.remove(this);
+//            fragmentTransaction.commit();
+//
+//            // Optionally replace with another fragment or activity
+//            // Example: Replace with MainFragment
+//            Intent intent = new Intent(getActivity(), MainActivity.class);
+//            startActivity(intent);
+//        }
+//    }
+private void removeFragment() {
+    if (isAdded()) {
+        FragmentManager fragmentManager = getParentFragmentManager();
+        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
 
-            // Remove the PolicyAcceptanceFragment
-            fragmentTransaction.remove(this);
-            fragmentTransaction.commit();
+        // Remove the PolicyAcceptanceFragment
+        fragmentTransaction.remove(this);
+        fragmentTransaction.commit();
 
-            // Optionally replace with another fragment or activity
-            // Example: Replace with MainFragment
-            Intent intent = new Intent(getActivity(), MainActivity.class);
-            startActivity(intent);
+        // Notify the MainActivity that the policy has been accepted
+        if (getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).onPolicyAccepted();
         }
+
+        // Optionally replace with another fragment or activity
+        // Example: Replace with MainFragment or start MainActivity
+        Intent intent = new Intent(getActivity(), MainActivity.class);
+        startActivity(intent);
     }
+}
+
 }
