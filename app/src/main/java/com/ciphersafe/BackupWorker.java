@@ -225,10 +225,23 @@ public class BackupWorker extends Worker {
 
         Log.d("PasswordManager", "Excel file created successfully in memory with password protection");
     }
+    private byte[] readAllBytesCompat(ByteArrayInputStream bais) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        int nRead;
+        byte[] data = new byte[16384]; // 16KB buffer size
 
-private String uploadFileToGoogleDrive(String fileName, ByteArrayInputStream bais, GoogleSignInAccount account) throws IOException {
+        while ((nRead = bais.read(data, 0, data.length)) != -1) {
+            buffer.write(data, 0, nRead);
+        }
+
+        buffer.flush();
+        return buffer.toByteArray();
+    }
+
+
+    private String uploadFileToGoogleDrive(String fileName, ByteArrayInputStream bais, GoogleSignInAccount account) throws IOException {
     saveDebugLogToFile("Starting upload of file: " + fileName);
-    byte[] fileBytes = bais.readAllBytes();
+    byte[] fileBytes = readAllBytesCompat(bais);
 
     GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
             getApplicationContext(), Collections.singleton(DriveScopes.DRIVE_FILE));
@@ -271,7 +284,7 @@ private String uploadFileToGoogleDrive(String fileName, ByteArrayInputStream bai
 
     private void updateFileOnGoogleDrive(String fileId, ByteArrayInputStream bais, GoogleSignInAccount account) throws IOException {
         saveDebugLogToFile("Starting update of file with ID: " + fileId);
-        byte[] fileBytes = bais.readAllBytes();
+        byte[] fileBytes = readAllBytesCompat(bais);
 
         GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
                 getApplicationContext(), Collections.singleton(DriveScopes.DRIVE_FILE));

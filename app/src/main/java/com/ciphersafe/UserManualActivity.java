@@ -23,7 +23,7 @@ public class UserManualActivity extends AppCompatActivity {
                 "2.1. Installation\n" +
                 "Download and install the CipherSafe app from the app store.\n" +
                 "2.2. First Launch\n" +
-                "Upon first launching the app, you will be prompted to accept the Privacy Policy. The app will not allow access until you accept the policy.\n" +
+                "Upon first launching the app, you will b`e prompted to accept the Privacy Policy. The app will not allow access until you accept the policy.\n" +
                 "After accepting the policy, you will need to set up the app, including database initialization and Google Drive connection.\n" +
                 "2.3. Authentication\n" +
                 "Biometric authentication (fingerprint or face recognition) is required to access the app after the initial setup. The app will prompt for biometric authentication every time it is opened after the first launch.\n" +
@@ -31,10 +31,10 @@ public class UserManualActivity extends AppCompatActivity {
                 "3.1. Adding a New Password\n" +
                 "Tap the \"+\" icon at the bottom of the screen to add a new password.\n" +
                 "A dialog will appear asking you to input the following details:\n" +
-                "Account Name (required)\n" +
-                "Username (required)\n" +
-                "Password (required)\n" +
-                "Notes (optional)\n" +
+                "Account Name (required, max 30 characters)\n" +
+                "Username (required, max 50 characters)\n" +
+                "Password (required, max 50 characters)\n" +
+                "Notes (optional, max 500 characters)\n" +
                 "If any of the required fields are empty, the app will display a Toast notification asking you to fill in the missing information. The dialog will remain open until all required fields are filled.\n" +
                 "Once all required fields are completed, tap \"Add\" to save the password.\n" +
                 "3.2. Viewing Password Details\n" +
