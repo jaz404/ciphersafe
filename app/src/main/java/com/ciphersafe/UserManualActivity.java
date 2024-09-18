@@ -72,11 +72,13 @@ public class UserManualActivity extends AppCompatActivity {
                 "6.2. Periodic Backup\n" +
                 "The app supports periodic backups of your password data to Google Drive. This feature can be customized or disabled in the settings.\n" +
                 "7. Troubleshooting\n" +
-                "7.1. Forgotten Password\n" +
-                "If you forget the password used for Google Drive backups, you will need to set a new password through the app settings.\n" +
-                "7.2. Biometric Authentication Issues\n" +
+//                "7.1. Forgotten Password\n" +
+//                "If you forget the password used for Google Drive backups, you will need to set a new password through the app settings.\n" +
+                "7.1. Biometric Authentication Issues\n" +
                 "Ensure that biometric authentication is enabled on your device and that your biometric data is properly enrolled.\n" +
-                "If biometric authentication fails, you can use device credentials (PIN/Pattern) to access the app.";
+                "If biometric authentication fails, you can use device credentials (PIN/Pattern) to access the app.\n"+
+                "8. Contact the Developer\n" +
+                "Email: chhabrajaspreet14@gmail.com";
 
         userManualText.setText(userManualContent);
         closeButton.setOnClickListener(v -> finish());

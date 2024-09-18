@@ -73,7 +73,6 @@ import android.view.Window;
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_SIGN_IN = 1001;
     private ListView passwordListView;
-
     private AppDatabase db;
     ImageView cloudImage, downloadImage, addPasswordImage;
     private static final String KEY_LAUNCH_COUNT = "LaunchCount";
