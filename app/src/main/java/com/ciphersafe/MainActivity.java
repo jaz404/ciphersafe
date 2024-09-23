@@ -7,7 +7,6 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.text.InputType;
 import android.util.Log;
 import android.view.View;
 
@@ -67,7 +66,6 @@ import androidx.work.Data;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import java.util.concurrent.TimeUnit;
-import android.view.Window;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -75,7 +73,7 @@ public class MainActivity extends AppCompatActivity {
     private ListView passwordListView;
     private AppDatabase db;
     ImageView cloudImage, downloadImage, addPasswordImage;
-    private static final String KEY_LAUNCH_COUNT = "LaunchCount";
+//    private static final String KEY_LAUNCH_COUNT = "LaunchCount";
 
     private GoogleSignInClient googleSignInClient;
     private Drive googleDriveService;
@@ -86,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
 
         SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
         boolean isPolicyAccepted = sharedPreferences.getBoolean("PolicyAccepted", false);
-        boolean isAuthenticated = sharedPreferences.getBoolean("IsAuthenticated", false);
+//        boolean isAuthenticated = sharedPreferences.getBoolean("IsAuthenticated", false);
 
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putBoolean("IsAuthenticated", false);
@@ -584,20 +582,6 @@ private void loadPasswords() {
 
 
     private void exportToExcel() {
-//        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-//        builder.setTitle("Set Password");
-//
-//        final EditText input = new EditText(this);
-//        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-//        builder.setView(input);
-//
-//        builder.setPositiveButton("OK", (dialog, which) -> {
-//            String password = input.getText().toString();
-//            createExcelFile(password);
-//        });
-//        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
-//
-//        builder.show();
         SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
         String password = sharedPreferences.getString("EXCEL_PASSWORD", null);
 

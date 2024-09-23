@@ -38,11 +38,13 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 public class BackupWorker extends Worker {
     private AppDatabase db;
@@ -110,48 +112,109 @@ public class BackupWorker extends Worker {
             return Result.failure();
         }
     }
-    private void saveDebugLogToFile(String logMessage) {
-        String fileName = "BackupWorkerLog.txt"; // Single file to append logs
+//    private void saveDebugLogToFile(String logMessage) {
+//        String fileName = "BackupWorkerLog.txt"; // Single file to append logs
+//
+//        ContentResolver resolver = getApplicationContext().getContentResolver();
+//        Uri externalContentUri = MediaStore.Files.getContentUri("external");
+//
+//        // Query the Downloads folder to check if the file already exists
+//        String selection = MediaStore.MediaColumns.DISPLAY_NAME + "=?";
+//        String[] selectionArgs = new String[]{fileName};
+//
+//        Uri fileUri = null;
+//
+//        try (Cursor cursor = resolver.query(externalContentUri, new String[]{MediaStore.MediaColumns._ID}, selection, selectionArgs, null)) {
+//            if (cursor != null && cursor.moveToFirst()) {
+//                // File exists, retrieve its URI
+//                long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID));
+//                fileUri = Uri.withAppendedPath(externalContentUri, String.valueOf(id));
+//            }
+//        }
+//
+//        if (fileUri == null) {
+//            // File doesn't exist, create a new one
+//            ContentValues values = new ContentValues();
+//            values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+//            values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
+//            values.put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/CipherSafe");
+//
+//            fileUri = resolver.insert(externalContentUri, values);
+//        }
+//
+//        try (OutputStream os = resolver.openOutputStream(fileUri, "wa")) { // "wa" is for write-append mode
+//            if (os != null) {
+//                os.write((logMessage + "\n").getBytes()); // Append log message with newline
+//                os.flush();
+//                Log.d("BackupWorker", "Debug log saved/updated in Downloads folder");
+//            }
+//        } catch (Exception e) {
+//            Log.e("BackupWorker", "Failed to save/update debug log", e);
+//        }
+//    }
+private void saveDebugLogToFile(String logMessage) {
+    String fileName = "BackupWorkerLog.txt"; // Single file to append logs
 
-        ContentResolver resolver = getApplicationContext().getContentResolver();
-        Uri externalContentUri = MediaStore.Files.getContentUri("external");
+    // Get device information
+    String deviceInfo = getDeviceInfo();
 
-        // Query the Downloads folder to check if the file already exists
-        String selection = MediaStore.MediaColumns.DISPLAY_NAME + "=?";
-        String[] selectionArgs = new String[]{fileName};
+    // Get the cache directory
+    java.io.File cacheDir = getApplicationContext().getCacheDir();
+    java.io.File logFile = new java.io.File(cacheDir, fileName);
 
-        Uri fileUri = null;
-
-        try (Cursor cursor = resolver.query(externalContentUri, new String[]{MediaStore.MediaColumns._ID}, selection, selectionArgs, null)) {
-            if (cursor != null && cursor.moveToFirst()) {
-                // File exists, retrieve its URI
-                long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID));
-                fileUri = Uri.withAppendedPath(externalContentUri, String.valueOf(id));
-            }
-        }
-
-        if (fileUri == null) {
-            // File doesn't exist, create a new one
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
-            values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
-            values.put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/CipherSafe");
-
-            fileUri = resolver.insert(externalContentUri, values);
-        }
-
-        try (OutputStream os = resolver.openOutputStream(fileUri, "wa")) { // "wa" is for write-append mode
-            if (os != null) {
-                os.write((logMessage + "\n").getBytes()); // Append log message with newline
-                os.flush();
-                Log.d("BackupWorker", "Debug log saved/updated in Downloads folder");
-            }
-        } catch (Exception e) {
-            Log.e("BackupWorker", "Failed to save/update debug log", e);
+    // Log to ensure the cache directory exists
+    if (!cacheDir.exists()) {
+        Log.e("BackupWorker", "Cache directory does not exist. Trying to create it...");
+        if (!cacheDir.mkdirs()) {
+            Log.e("BackupWorker", "Failed to create cache directory.");
+            return; // Abort if the directory couldn't be created
         }
     }
 
+    Log.d("BackupWorker", "Cache directory path: " + cacheDir.getAbsolutePath());
 
+    try (FileWriter fw = new FileWriter(logFile, true)) { // 'true' for append mode
+        String timestampedMessage = "[" + getCurrentTimestamp() + "] " + deviceInfo + logMessage + "\n";
+        fw.write(timestampedMessage);
+        fw.flush();
+        Log.d("BackupWorker", "Debug log saved/updated in cache directory: " + logFile.getAbsolutePath());
+    } catch (IOException e) {
+        Log.e("BackupWorker", "Failed to save/update debug log in cache directory: " + e.getMessage());
+        e.printStackTrace();
+    }
+}
+
+    // Helper method to get the current timestamp
+    private String getCurrentTimestamp() {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        return sdf.format(new java.util.Date());
+    }
+
+    // Helper method to get device information
+    private String getDeviceInfo() {
+        StringBuilder deviceInfo = new StringBuilder();
+        deviceInfo.append("Device Info: \n");
+        deviceInfo.append("Android Version: ").append(android.os.Build.VERSION.RELEASE).append("\n");
+        deviceInfo.append("Phone Model: ").append(android.os.Build.MODEL).append("\n");
+        deviceInfo.append("Manufacturer: ").append(android.os.Build.MANUFACTURER).append("\n");
+
+        // Wi-Fi status
+        android.net.wifi.WifiManager wifiManager = (android.net.wifi.WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        if (wifiManager != null) {
+            if (wifiManager.isWifiEnabled()) {
+                deviceInfo.append("Wi-Fi Status: Enabled\n");
+                android.net.wifi.WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+                deviceInfo.append("Connected to: ").append(wifiInfo.getSSID()).append("\n");
+                deviceInfo.append("Signal Strength: ").append(wifiInfo.getRssi()).append(" dBm\n");
+            } else {
+                deviceInfo.append("Wi-Fi Status: Disabled\n");
+            }
+        } else {
+            deviceInfo.append("Wi-Fi Info: Unavailable\n");
+        }
+
+        return deviceInfo.toString();
+    }
 
     private void createExcelFile(String password, ByteArrayOutputStream baos) throws IOException {
         saveDebugLogToFile("File: BackupWorker Function: createExcelFile"+" Message: Worker is creating an excel file");
