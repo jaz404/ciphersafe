@@ -66,25 +66,29 @@ import androidx.work.Data;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import java.util.concurrent.TimeUnit;
+import com.android.billingclient.api.*;
 
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_SIGN_IN = 1001;
     private ListView passwordListView;
     private AppDatabase db;
+    private BillingClient billingClient;
     ImageView cloudImage, downloadImage, addPasswordImage;
-//    private static final String KEY_LAUNCH_COUNT = "LaunchCount";
+    private static final String SUBSCRIPTION_ID = "google_drive_backup_subscription";
+    private boolean isSubscribed = false;
 
     private GoogleSignInClient googleSignInClient;
     private Drive googleDriveService;
     TextView cipherSafeTextView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
         boolean isPolicyAccepted = sharedPreferences.getBoolean("PolicyAccepted", false);
-//        boolean isAuthenticated = sharedPreferences.getBoolean("IsAuthenticated", false);
+
 
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putBoolean("IsAuthenticated", false);
@@ -94,6 +98,7 @@ public class MainActivity extends AppCompatActivity {
         initializeViews();
         FragmentManager fragmentManager = getSupportFragmentManager();
         FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+
 
         setupDatabase();
         if (!isPolicyAccepted) {
@@ -108,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
     private boolean isPasswordListEmpty() {
         setupDatabase();
 
@@ -115,10 +121,11 @@ public class MainActivity extends AppCompatActivity {
         int passwordListSize = passwords.size();
 
         Log.d("MainActivity", "Password list size: " + passwordListSize);
-        Log.d("MainActivity", ""+passwords.isEmpty());
+        Log.d("MainActivity", "" + passwords.isEmpty());
 
         return passwords.isEmpty();
     }
+
     private void onFirstUse() {
         // Perform the first-use setup tasks
         setupPasswordList();
@@ -126,18 +133,21 @@ public class MainActivity extends AppCompatActivity {
         passwordListView.setVisibility(View.VISIBLE);
         checkGoogleDriveSignInStatus();
     }
+
     private void showPolicyAcceptanceFragment() {
         FragmentManager fragmentManager = getSupportFragmentManager();
         FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
         fragmentTransaction.replace(R.id.fragment_container, new PolicyAcceptanceFragment());
         fragmentTransaction.commit();
     }
+
     public void onPolicyAccepted() {
         SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putBoolean("PolicyAccepted", true);
         editor.apply();
     }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -145,6 +155,7 @@ public class MainActivity extends AppCompatActivity {
         //passwordListView.setVisibility(View.GONE);
         SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
     }
+
     private void setupGoogleSignIn() {
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestScopes(new Scope(DriveScopes.DRIVE_FILE))
@@ -164,6 +175,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
     private void checkGoogleDriveSignInStatus() {
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
         SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
@@ -178,6 +190,7 @@ public class MainActivity extends AppCompatActivity {
             cloudImage.setImageResource(R.drawable.clouddisable); // Set image indicating not connected
         }
     }
+
     private void promptForPasswordAndStore() {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         builder.setTitle("Set Password for the File");
@@ -226,6 +239,7 @@ public class MainActivity extends AppCompatActivity {
         Intent signInIntent = googleSignInClient.getSignInIntent();
         startActivityForResult(signInIntent, REQUEST_SIGN_IN);
     }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -234,6 +248,7 @@ public class MainActivity extends AppCompatActivity {
             handleSignInResult(task);
         }
     }
+
     private void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
         try {
             GoogleSignInAccount account = completedTask.getResult(ApiException.class);
@@ -302,6 +317,7 @@ public class MainActivity extends AppCompatActivity {
 
         WorkManager.getInstance(this).enqueue(backupWorkRequest);
     }
+
     private void saveDebugLogToFile(String logMessage) {
         String fileName = "BackupWorkerLog.txt"; // Single file to append logs
 
@@ -343,97 +359,47 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-private void setupPasswordList() {
-    List<Password> passwords = db.passwordDao().getAll();
-    List<String[]> passwordDataList = new ArrayList<>();
-    for (Password password : passwords) {
-        passwordDataList.add(new String[]{password.accountName, password.username});
-    }
-    // Initialize the adapter with the data
-    CustomAdapter adapter = new CustomAdapter(this, passwordDataList);
-    passwordListView.setAdapter(adapter);
-
-    passwordListView.setOnItemClickListener((parent, view, position, id) -> {
-        if (position < adapter.getCount()) {  // Use adapter.getCount() instead of passwordDataList.size()
-            String[] selectedAccountData = (String[]) adapter.getItem(position);
-            if (selectedAccountData.length > 0) {
-                showPasswordDetails(selectedAccountData[0]);  // Show details using account name
-            } else {
-                Log.e("MainActivity", "Selected account data array is empty or has insufficient elements.");
-            }
-        } else {
-            Log.e("MainActivity", "Invalid position: " + position + " for adapter of size " + adapter.getCount());
+    private void setupPasswordList() {
+        List<Password> passwords = db.passwordDao().getAll();
+        List<String[]> passwordDataList = new ArrayList<>();
+        for (Password password : passwords) {
+            passwordDataList.add(new String[]{password.accountName, password.username});
         }
-    });
-}
-
-
-
-
-//    private void loadPasswords() {
-//        List<Password> passwords = db.passwordDao().getAll();
-//
-//        List<String[]> passwordDataList = new ArrayList<>();
-//        for (Password password : passwords) {
-//            passwordDataList.add(new String[]{password.accountName, password.username});
-//        }
-//
-//        CustomAdapter adapter = (CustomAdapter) passwordListView.getAdapter();
-//        if (adapter != null) {
-//            adapter.updateData(passwordDataList);
-//        } else {
-//            Log.e("MainActivity", "Adapter is null when trying to notifyDataSetChanged()");
-//        }
-//    }
-private void loadPasswords() {
-    List<Password> passwords = db.passwordDao().getAll();
-
-    List<String[]> passwordDataList = new ArrayList<>();
-    for (Password password : passwords) {
-        passwordDataList.add(new String[]{password.accountName, password.username});
-    }
-
-    CustomAdapter adapter = (CustomAdapter) passwordListView.getAdapter();
-    if (adapter != null) {
-        adapter.updateData(passwordDataList);  // Update the adapter's data and notify it to refresh
-    } else {
-        // If adapter is null, initialize it and set it to the ListView
-        adapter = new CustomAdapter(this, passwordDataList);
+        // Initialize the adapter with the data
+        CustomAdapter adapter = new CustomAdapter(this, passwordDataList);
         passwordListView.setAdapter(adapter);
+
+        passwordListView.setOnItemClickListener((parent, view, position, id) -> {
+            if (position < adapter.getCount()) {  // Use adapter.getCount() instead of passwordDataList.size()
+                String[] selectedAccountData = (String[]) adapter.getItem(position);
+                if (selectedAccountData.length > 0) {
+                    showPasswordDetails(selectedAccountData[0]);  // Show details using account name
+                } else {
+                    Log.e("MainActivity", "Selected account data array is empty or has insufficient elements.");
+                }
+            } else {
+                Log.e("MainActivity", "Invalid position: " + position + " for adapter of size " + adapter.getCount());
+            }
+        });
     }
-}
 
+    private void loadPasswords() {
+        List<Password> passwords = db.passwordDao().getAll();
 
-//    private void showPasswordDetails(String accountName) {
-//        Password password = db.passwordDao().findByAccountName(accountName);
-//
-//        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-//        builder.setTitle(accountName);
-//
-//        View dialogView = getLayoutInflater().inflate(R.layout.dialog_password_details, null);
-//        TextView usernameTextView = dialogView.findViewById(R.id.username);
-//        TextView passwordTextView = dialogView.findViewById(R.id.password);
-//        TextView notesTextView = dialogView.findViewById(R.id.notes);
-//
-//        usernameTextView.setText(password.username);
-//
-//        String decryptedPassword;
-//        try {
-//            decryptedPassword = EncryptionUtils.decrypt(password.password);
-//        } catch (Exception e) {
-//            decryptedPassword = "[Decryption failed]";
-//            Log.e("PasswordManager", "Decryption failed", e);
-//        }
-//        passwordTextView.setText(decryptedPassword);
-//
-//        notesTextView.setText(password.notes);
-//
-//        builder.setView(dialogView);
-//        builder.setPositiveButton("OK", (dialog, which) -> dialog.dismiss());
-//        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-//
-//        builder.show();
-//    }
+        List<String[]> passwordDataList = new ArrayList<>();
+        for (Password password : passwords) {
+            passwordDataList.add(new String[]{password.accountName, password.username});
+        }
+
+        CustomAdapter adapter = (CustomAdapter) passwordListView.getAdapter();
+        if (adapter != null) {
+            adapter.updateData(passwordDataList);  // Update the adapter's data and notify it to refresh
+        } else {
+            // If adapter is null, initialize it and set it to the ListView
+            adapter = new CustomAdapter(this, passwordDataList);
+            passwordListView.setAdapter(adapter);
+        }
+    }
 
     public void showPasswordDetails(String accountName) {
         Password password = db.passwordDao().findByAccountName(accountName);
@@ -449,7 +415,7 @@ private void loadPasswords() {
         TextInputEditText notesEditText = dialogView.findViewById(R.id.dialog_notes);
 
         // Set the values from the database
-       // accountNameEditText.setText(password.accountName);
+        // accountNameEditText.setText(password.accountName);
         usernameEditText.setText(password.username);
 
         String decryptedPassword;
@@ -656,197 +622,151 @@ private void loadPasswords() {
         }
     }
 
-//    private void showBackupOptionsDialog() {
-//        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-//        builder.setTitle("Google Drive Backup");
-//        boolean isBackupEnabled;
-//        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
-//        if (account != null) {
-//            // User is signed in
-//            isBackupEnabled = true;
-//        } else {
-//            // User is not signed in
-//            isBackupEnabled = false;
-//        }
-//
-//        // Set up the message
-//        builder.setMessage("Would you like to enable Google Drive backups?");
-//
-//        // Set up the buttons
-//        builder.setPositiveButton("Enable", (dialog, which) -> {
-//            // Start the Google Drive sign-in process
-//            setupGoogleSignIn();
-//            dialog.dismiss();
-//        });
-//
-//        builder.setNegativeButton("Disable", (dialog, which) -> {
-//            if (isBackupEnabled) {
-//                // Ensure googleSignInClient is initialized before attempting to sign out
-//                if (googleSignInClient == null) {
-//                    googleSignInClient = GoogleSignIn.getClient(this, GoogleSignInOptions.DEFAULT_SIGN_IN);
-//                }
-//
-//                googleSignInClient.signOut()
-//                        .addOnCompleteListener(this, task -> {
-//                            // Handle sign-out
-//                            cloudImage.setImageResource(R.drawable.clouddisable);
-//                            Toast.makeText(MainActivity.this, "Google Drive backups disabled", Toast.LENGTH_SHORT).show();
-//                        });
-//            }
-//        });
-//
-//        builder.setNeutralButton("Cancel", (dialog, which) -> {
-//            dialog.dismiss();
-//        });
-//
-//        AlertDialog dialog = builder.create();
-//        dialog.show();
-//    }
-private void showBackupOptionsDialog() {
-    MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
-    builder.setTitle("Google Drive Backup");
+    private void showBackupOptionsDialog() {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle("Google Drive Backup");
 
-    // Determine if backup is enabled
-    GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
-    boolean isBackupEnabled = (account != null); // Check if Google Drive backup is enabled
+        // Determine if backup is enabled
+        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
+        boolean isBackupEnabled = (account != null); // Check if Google Drive backup is enabled
 
-    // Inflate a custom view for the dialog message (optional, but can enhance visuals)
-    View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_options, null);
-    TextView messageTextView = dialogView.findViewById(R.id.backup_message);
+        // Inflate a custom view for the dialog message (optional, but can enhance visuals)
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_options, null);
+        TextView messageTextView = dialogView.findViewById(R.id.backup_message);
 
-    if (isBackupEnabled) {
-        // If backup is enabled, offer the option to disable it
-        messageTextView.setText("Google Drive backups are currently enabled. Would you like to disable them?");
+        if (isBackupEnabled) {
+            // If backup is enabled, offer the option to disable it
+            messageTextView.setText("Google Drive backups are currently enabled. Would you like to disable them?");
 
-        builder.setPositiveButton("Disable", (dialog, which) -> {
-            // Ensure googleSignInClient is initialized before attempting to sign out
-            if (googleSignInClient == null) {
-                googleSignInClient = GoogleSignIn.getClient(this, GoogleSignInOptions.DEFAULT_SIGN_IN);
-            }
+            builder.setPositiveButton("Disable", (dialog, which) -> {
+                // Ensure googleSignInClient is initialized before attempting to sign out
+                if (googleSignInClient == null) {
+                    googleSignInClient = GoogleSignIn.getClient(this, GoogleSignInOptions.DEFAULT_SIGN_IN);
+                }
 
-            googleSignInClient.signOut()
-                    .addOnCompleteListener(this, task -> {
-                        // Handle sign-out
-                        cloudImage.setImageResource(R.drawable.clouddisable);
-                        Toast.makeText(MainActivity.this, "Google Drive backups disabled", Toast.LENGTH_SHORT).show();
-                    });
+                googleSignInClient.signOut()
+                        .addOnCompleteListener(this, task -> {
+                            // Handle sign-out
+                            cloudImage.setImageResource(R.drawable.clouddisable);
+                            Toast.makeText(MainActivity.this, "Google Drive backups disabled", Toast.LENGTH_SHORT).show();
+                        });
 
-            dialog.dismiss();
-        });
+                dialog.dismiss();
+            });
 
-    } else {
-        // If backup is disabled, offer the option to enable it
-        messageTextView.setText("Google Drive backups are currently disabled. Would you like to enable them?");
+        } else {
+            // If backup is disabled, offer the option to enable it
+            messageTextView.setText("Google Drive backups are currently disabled. Would you like to enable them?");
 
-        builder.setPositiveButton("Enable", (dialog, which) -> {
-            // Start the Google Drive sign-in process
-            setupGoogleSignIn();
-            dialog.dismiss();
-        });
+            builder.setPositiveButton("Enable", (dialog, which) -> {
+                // Start the Google Drive sign-in process
+                setupGoogleSignIn();
+                dialog.dismiss();
+            });
+        }
+
+        // Cancel button for both cases
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+
+        // Set the custom view for the dialog
+        builder.setView(dialogView);
+
+        // Show the dialog
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
-
-    // Cancel button for both cases
-    builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-
-    // Set the custom view for the dialog
-    builder.setView(dialogView);
-
-    // Show the dialog
-    AlertDialog dialog = builder.create();
-    dialog.show();
-}
 
     private void authenticateAppStart() {
-    //Log.d("MainActivity", "Auth should be done");
+        //Log.d("MainActivity", "Auth should be done");
 
-    SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
-    boolean isAuthenticated = sharedPreferences.getBoolean("IsAuthenticated", false);
+        SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
+        boolean isAuthenticated = sharedPreferences.getBoolean("IsAuthenticated", false);
 
-    if (!isAuthenticated) {
-        BiometricManager biometricManager = BiometricManager.from(this);
+        if (!isAuthenticated) {
+            BiometricManager biometricManager = BiometricManager.from(this);
 
-        // Check biometric capability and log the result
-        int canAuthenticateResult = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK);
-        Log.d("MainActivity", "Can Authenticate Result: " + canAuthenticateResult);
+            // Check biometric capability and log the result
+            int canAuthenticateResult = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK);
+            Log.d("MainActivity", "Can Authenticate Result: " + canAuthenticateResult);
 
-        if (canAuthenticateResult != BiometricManager.BIOMETRIC_SUCCESS) {
-            Log.w("FaceAuth", "Face authentication is not available on this device");
-            Toast.makeText(this, "Face authentication is not available. Falling back to PIN/pattern.", Toast.LENGTH_LONG).show();
+            if (canAuthenticateResult != BiometricManager.BIOMETRIC_SUCCESS) {
+                Log.w("FaceAuth", "Face authentication is not available on this device");
+                Toast.makeText(this, "Face authentication is not available. Falling back to PIN/pattern.", Toast.LENGTH_LONG).show();
+            }
+
+            BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Biometric Authentication")
+                    .setSubtitle("Authenticate to access the app")
+                    .setAllowedAuthenticators(
+                            BiometricManager.Authenticators.BIOMETRIC_STRONG |  // Strong biometrics like fingerprint or face
+                                    BiometricManager.Authenticators.BIOMETRIC_WEAK |    // Weaker biometrics
+                                    BiometricManager.Authenticators.DEVICE_CREDENTIAL   // PIN, pattern, or password
+                    )
+                    .build();
+
+            Executor executor = ContextCompat.getMainExecutor(this);
+            BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
+                @Override
+                public void onAuthenticationError(int errorCode, CharSequence errString) {
+                    super.onAuthenticationError(errorCode, errString);
+                    Log.e("FaceAuth", "Authentication error: " + errorCode + " " + errString);
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "Authentication error: " + errString, Toast.LENGTH_SHORT).show();
+                        if (errorCode == BiometricPrompt.ERROR_NO_BIOMETRICS) {
+                            Toast.makeText(MainActivity.this, "No face data enrolled. Please set up face recognition in your device settings.", Toast.LENGTH_LONG).show();
+                        }
+                        finish(); // Close the app if authentication fails
+                    });
+                }
+
+                @Override
+                public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
+                    super.onAuthenticationSucceeded(result);
+                    runOnUiThread(() -> {
+                        if (result.getAuthenticationType() == BiometricPrompt.AUTHENTICATION_RESULT_TYPE_BIOMETRIC) {
+                            Toast.makeText(MainActivity.this, "Face authentication succeeded", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "Device credential authentication succeeded", Toast.LENGTH_SHORT).show();
+                        }
+                        SharedPreferences.Editor editor = sharedPreferences.edit();
+                        editor.putBoolean("IsAuthenticated", true);
+                        editor.apply();
+
+                        setupDatabase();
+                        setupPasswordList();
+                        setupButtonListeners();
+                        passwordListView.setVisibility(View.VISIBLE);
+                        checkGoogleDriveSignInStatus();
+                    });
+                }
+
+                @Override
+                public void onAuthenticationFailed() {
+                    super.onAuthenticationFailed();
+                    Log.e("FaceAuth", "Authentication failed");
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "Face authentication failed. Please try again or use your PIN/pattern.", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+
+            try {
+                Log.d("MainActivity", "Starting biometric prompt");
+                biometricPrompt.authenticate(promptInfo);
+            } catch (Exception e) {
+                Log.e("FaceAuth", "Exception during authentication", e);
+                Toast.makeText(this, "Error during authentication: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                finish(); // Close the app if authentication fails
+            }
+        } else {
+            Log.d("MainActivity", "Already authenticated, initializing app");
+            setupDatabase();
+            setupPasswordList();
+            setupButtonListeners();
+            passwordListView.setVisibility(View.VISIBLE);
+            checkGoogleDriveSignInStatus();
         }
-
-        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Biometric Authentication")
-                .setSubtitle("Authenticate to access the app")
-                .setAllowedAuthenticators(
-                        BiometricManager.Authenticators.BIOMETRIC_STRONG |  // Strong biometrics like fingerprint or face
-                                BiometricManager.Authenticators.BIOMETRIC_WEAK |    // Weaker biometrics
-                                BiometricManager.Authenticators.DEVICE_CREDENTIAL   // PIN, pattern, or password
-                )
-                .build();
-
-        Executor executor = ContextCompat.getMainExecutor(this);
-        BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
-            @Override
-            public void onAuthenticationError(int errorCode, CharSequence errString) {
-                super.onAuthenticationError(errorCode, errString);
-                Log.e("FaceAuth", "Authentication error: " + errorCode + " " + errString);
-                runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this, "Authentication error: " + errString, Toast.LENGTH_SHORT).show();
-                    if (errorCode == BiometricPrompt.ERROR_NO_BIOMETRICS) {
-                        Toast.makeText(MainActivity.this, "No face data enrolled. Please set up face recognition in your device settings.", Toast.LENGTH_LONG).show();
-                    }
-                    finish(); // Close the app if authentication fails
-                });
-            }
-
-            @Override
-            public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
-                super.onAuthenticationSucceeded(result);
-                runOnUiThread(() -> {
-                    if (result.getAuthenticationType() == BiometricPrompt.AUTHENTICATION_RESULT_TYPE_BIOMETRIC) {
-                        Toast.makeText(MainActivity.this, "Face authentication succeeded", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(MainActivity.this, "Device credential authentication succeeded", Toast.LENGTH_SHORT).show();
-                    }
-                    SharedPreferences.Editor editor = sharedPreferences.edit();
-                    editor.putBoolean("IsAuthenticated", true);
-                    editor.apply();
-
-                    setupDatabase();
-                    setupPasswordList();
-                    setupButtonListeners();
-                    passwordListView.setVisibility(View.VISIBLE);
-                    checkGoogleDriveSignInStatus();
-                });
-            }
-
-            @Override
-            public void onAuthenticationFailed() {
-                super.onAuthenticationFailed();
-                Log.e("FaceAuth", "Authentication failed");
-                runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this, "Face authentication failed. Please try again or use your PIN/pattern.", Toast.LENGTH_SHORT).show();
-                });
-            }
-        });
-
-        try {
-            Log.d("MainActivity", "Starting biometric prompt");
-            biometricPrompt.authenticate(promptInfo);
-        } catch (Exception e) {
-            Log.e("FaceAuth", "Exception during authentication", e);
-            Toast.makeText(this, "Error during authentication: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            finish(); // Close the app if authentication fails
-        }
-    } else {
-        Log.d("MainActivity", "Already authenticated, initializing app");
-        setupDatabase();
-        setupPasswordList();
-        setupButtonListeners();
-        passwordListView.setVisibility(View.VISIBLE);
-        checkGoogleDriveSignInStatus();
     }
-}
 
 
     private void setupButtonListeners() {
@@ -863,10 +783,11 @@ private void showBackupOptionsDialog() {
             }
         });
         cipherSafeTextView.setOnClickListener(v -> {
-                Intent intent = new Intent(MainActivity.this, UserManualActivity.class);
-                startActivity(intent);
-            });
+            Intent intent = new Intent(MainActivity.this, UserManualActivity.class);
+            startActivity(intent);
+        });
     }
+
     private void showAddPasswordDialog() {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         builder.setTitle("Add Password");
@@ -926,71 +847,5 @@ private void showBackupOptionsDialog() {
 
         dialog.show();
     }
-
-
-
-//    private void authenticateAndAddPassword() {
-//        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-//                .setTitle("Biometric Authentication")
-//                .setSubtitle("Authenticate to add password")
-//                .setNegativeButtonText("Cancel")
-//                .build();
-//
-//        Executor executor = ContextCompat.getMainExecutor(this);
-//        BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
-//            @Override
-//            public void onAuthenticationError(int errorCode, CharSequence errString) {
-//                super.onAuthenticationError(errorCode, errString);
-//                Toast.makeText(MainActivity.this, "Authentication error: " + errString, Toast.LENGTH_SHORT).show();
-//            }
-//
-//            @Override
-//            public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
-//                super.onAuthenticationSucceeded(result);
-//                //addPassword();
-//                passwordListView.setVisibility(View.VISIBLE);
-//            }
-//
-//            @Override
-//            public void onAuthenticationFailed() {
-//                super.onAuthenticationFailed();
-//                Toast.makeText(MainActivity.this, "Authentication failed", Toast.LENGTH_SHORT).show();
-//            }
-//        });
-//
-//        biometricPrompt.authenticate(promptInfo);
-//    }
-
-   // private void authenticateAndExportToExcel() {
-//        BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-//                .setTitle("Biometric Authentication")
-//                .setSubtitle("Authenticate to export passwords")
-//                .setNegativeButtonText("Cancel")
-//                .build();
-//
-//        Executor executor = ContextCompat.getMainExecutor(this);
-//        BiometricPrompt biometricPrompt = new BiometricPrompt(MainActivity.this, executor, new BiometricPrompt.AuthenticationCallback() {
-//            @Override
-//            public void onAuthenticationError(int errorCode, CharSequence errString) {
-//                super.onAuthenticationError(errorCode, errString);
-//                Toast.makeText(MainActivity.this, "Authentication error: " + errString, Toast.LENGTH_SHORT).show();
-//            }
-//
-//            @Override
-//            public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
-//                super.onAuthenticationSucceeded(result);
-//                exportToExcel();
-//                passwordListView.setVisibility(View.VISIBLE);
-//            }
-//
-//            @Override
-//            public void onAuthenticationFailed() {
-//                super.onAuthenticationFailed();
-//                Toast.makeText(MainActivity.this, "Authentication failed", Toast.LENGTH_SHORT).show();
-//            }
-//        });
-//
-//        biometricPrompt.authenticate(promptInfo);
-  //      exportToExcel();
- //   }
 }
+

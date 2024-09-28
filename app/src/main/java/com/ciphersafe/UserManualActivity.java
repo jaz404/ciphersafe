@@ -10,7 +10,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.io.File;
 
 public class UserManualActivity extends AppCompatActivity {
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -21,7 +20,7 @@ public class UserManualActivity extends AppCompatActivity {
 
         String userManualContent = "User Manual for CipherSafe Password Manager App\n" +
                 "1. Introduction\n" +
-                "CipherSafe is a secure and intuitive password manager designed and developed by Swedium Global Services to help you store and manage your passwords. This app allows you to encrypt your passwords, back them up to Google Drive, and export them to an Excel file. It also includes biometric authentication for added security.\n" +
+                "CipherSafe is a secure and intuitive password manager designed and developed to help you store and manage your passwords. This app allows you to encrypt your passwords, back them up to Google Drive, and export them to an Excel file. It also includes biometric authentication for added security.\n" +
                 "\n" +
                 "2. Getting Started\n" +
                 "2.1. Installation\n" +
