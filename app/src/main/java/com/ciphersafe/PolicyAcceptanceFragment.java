@@ -16,11 +16,24 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.Toast;
 
+/**
+ * PolicyAcceptanceFragment is a fragment that prompts the user to accept the privacy policy of the application.
+ * It includes a checkbox for accepting the policy, a button to view the policy, and a continue button to proceed after acceptance.
+ */
 public class PolicyAcceptanceFragment extends Fragment {
 
     private CheckBox acceptCheckBox;
     private Button viewPolicyButton, continueButton;
 
+    /**
+     * Called to have the fragment instantiate its user interface view. In this case, it inflates the policy acceptance layout
+     * and sets up the behavior for the "View Policy" and "Continue" buttons.
+     *
+     * @param inflater  The LayoutInflater object that can be used to inflate views in the fragment.
+     * @param container The parent view that the fragment's UI should be attached to.
+     * @param savedInstanceState If non-null, this fragment is being re-constructed from a previous saved state.
+     * @return The View for the fragment's UI, or null.
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -48,9 +61,10 @@ public class PolicyAcceptanceFragment extends Fragment {
                 editor.putBoolean("PolicyAccepted", true);
                 editor.apply();
 
-                // Remove the PolicyAcceptanceFragment and navigate to MainFragment or main content
+                // Remove the PolicyAcceptanceFragment and navigate to the main content or fragment
                 removeFragment();
             } else {
+                // Show a message if the checkbox is not checked
                 Toast.makeText(getContext(), "Please accept the privacy policy to continue.", Toast.LENGTH_SHORT).show();
             }
         });
@@ -58,40 +72,27 @@ public class PolicyAcceptanceFragment extends Fragment {
         return view;
     }
 
-//    private void removeFragment() {
-//        if (isAdded()) {
-//            FragmentManager fragmentManager = getParentFragmentManager();
-//            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-//
-//            // Remove the PolicyAcceptanceFragment
-//            fragmentTransaction.remove(this);
-//            fragmentTransaction.commit();
-//
-//            // Optionally replace with another fragment or activity
-//            // Example: Replace with MainFragment
-//            Intent intent = new Intent(getActivity(), MainActivity.class);
-//            startActivity(intent);
-//        }
-//    }
-private void removeFragment() {
-    if (isAdded()) {
-        FragmentManager fragmentManager = getParentFragmentManager();
-        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+    /**
+     * Removes the PolicyAcceptanceFragment and optionally replaces it with another fragment or starts the main activity.
+     * If the policy is accepted, this method is used to proceed to the main content of the app.
+     */
+    private void removeFragment() {
+        if (isAdded()) {
+            FragmentManager fragmentManager = getParentFragmentManager();
+            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
 
-        // Remove the PolicyAcceptanceFragment
-        fragmentTransaction.remove(this);
-        fragmentTransaction.commit();
+            // Remove the PolicyAcceptanceFragment
+            fragmentTransaction.remove(this);
+            fragmentTransaction.commit();
 
-        // Notify the MainActivity that the policy has been accepted
-        if (getActivity() instanceof MainActivity) {
-            ((MainActivity) getActivity()).onPolicyAccepted();
+            // Notify the MainActivity that the policy has been accepted
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).onPolicyAccepted();
+            }
+
+            // Optionally replace with another fragment or start the main activity
+            Intent intent = new Intent(getActivity(), MainActivity.class);
+            startActivity(intent);
         }
-
-        // Optionally replace with another fragment or activity
-        // Example: Replace with MainFragment or start MainActivity
-        Intent intent = new Intent(getActivity(), MainActivity.class);
-        startActivity(intent);
     }
-}
-
 }

@@ -8,8 +8,17 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.File;
-
+/**
+ * UserManualActivity displays the user manual for the CipherSafe Password Manager app.
+ * It provides options for users to read the manual, close the activity, and send log files for troubleshooting.
+ */
 public class UserManualActivity extends AppCompatActivity {
+    /**
+     * Called when the activity is first created. It sets up the user interface for displaying the user manual.
+     * It also sets up buttons to close the activity and send log files to the developer.
+     *
+     * @param savedInstanceState The saved instance state of the activity, if any.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -19,6 +28,7 @@ public class UserManualActivity extends AppCompatActivity {
         TextView userManualText = findViewById(R.id.user_manual_text);
 
         String userManualContent = "User Manual for CipherSafe Password Manager App\n" +
+                "I created this application as part of my Internship at Sweduium Global Services\n"+
                 "1. Introduction\n" +
                 "CipherSafe is a secure and intuitive password manager designed and developed to help you store and manage your passwords. This app allows you to encrypt your passwords, back them up to Google Drive, and export them to an Excel file. It also includes biometric authentication for added security.\n" +
                 "\n" +
@@ -89,6 +99,10 @@ public class UserManualActivity extends AppCompatActivity {
         closeButton.setOnClickListener(v -> finish());
         sendLogButton.setOnClickListener(v -> sendLogFile());
     }
+    /**
+     * Sends the log file via email to the developer. The log file is retrieved from the cache directory,
+     * and an email intent is created to send the file using the Gmail app.
+     */
     private void sendLogFile() {
         try {
             // Get the log file from the cache directory

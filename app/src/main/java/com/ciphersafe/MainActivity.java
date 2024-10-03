@@ -67,8 +67,10 @@ import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 import java.util.concurrent.TimeUnit;
 import com.android.billingclient.api.*;
-
-
+/**
+ * MainActivity class for managing CipherSafe password manager's primary functions.
+ * Handles the user interface, Google Drive backup functionality, and subscription management.
+ */
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_SIGN_IN = 1001;
     private ListView passwordListView;
@@ -77,18 +79,22 @@ public class MainActivity extends AppCompatActivity {
     ImageView cloudImage, downloadImage, addPasswordImage;
     private static final String SUBSCRIPTION_ID = "google_drive_backup_subscription";
     private boolean isSubscribed = false;
-
     private GoogleSignInClient googleSignInClient;
     private Drive googleDriveService;
     TextView cipherSafeTextView;
-
+    /**
+     * Called when the activity is first created. Sets up views, initializes the database,
+     * starts the billing connection, and checks the subscription status.
+     *
+     * @param savedInstanceState If the activity is being re-initialized after being previously shut down,
+     *                           this Bundle contains the data it most recently supplied.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
         boolean isPolicyAccepted = sharedPreferences.getBoolean("PolicyAccepted", false);
-
 
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putBoolean("IsAuthenticated", false);
@@ -99,6 +105,9 @@ public class MainActivity extends AppCompatActivity {
         FragmentManager fragmentManager = getSupportFragmentManager();
         FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
 
+        setupBillingClient();
+        startBillingConnection();
+        querySubscriptionStatus();
 
         setupDatabase();
         if (!isPolicyAccepted) {
@@ -113,7 +122,12 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-
+    /**
+     * Checks if the password list is empty. Retrieves all stored passwords from the database
+     * and logs the current size of the password list.
+     *
+     * @return true if the password list is empty, false otherwise.
+     */
     private boolean isPasswordListEmpty() {
         setupDatabase();
 
@@ -125,7 +139,10 @@ public class MainActivity extends AppCompatActivity {
 
         return passwords.isEmpty();
     }
-
+    /**
+     * Sets up the application for first-time use. Initializes the password list,
+     * sets up button listeners, and checks the Google Drive sign-in status.
+     */
     private void onFirstUse() {
         // Perform the first-use setup tasks
         setupPasswordList();
@@ -133,29 +150,44 @@ public class MainActivity extends AppCompatActivity {
         passwordListView.setVisibility(View.VISIBLE);
         checkGoogleDriveSignInStatus();
     }
-
+    /**
+     * Displays the policy acceptance fragment. This fragment asks the user to accept
+     * the application's privacy policy before continuing.
+     */
     private void showPolicyAcceptanceFragment() {
         FragmentManager fragmentManager = getSupportFragmentManager();
         FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
         fragmentTransaction.replace(R.id.fragment_container, new PolicyAcceptanceFragment());
         fragmentTransaction.commit();
     }
-
+    /**
+     * Handles the event when the user accepts the privacy policy. Updates the shared preferences
+     * to store the policy acceptance status.
+     */
     public void onPolicyAccepted() {
         SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putBoolean("PolicyAccepted", true);
         editor.apply();
     }
-
+    /**
+     * Called when the activity is about to become visible and interactive.
+     * It refreshes the current state, ensuring the app checks the subscription
+     * and backup status after a resume from the background.
+     */
     @Override
     protected void onResume() {
         super.onResume();
         // Optional: Move the authentication logic here if it's more reliable
         //passwordListView.setVisibility(View.GONE);
         SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
+        updateCloudIcon();
     }
-
+    /**
+     * Sets up the Google Sign-In process for enabling Google Drive backup.
+     * This method configures the GoogleSignInClient with the necessary
+     * scopes and starts the sign-in process.
+     */
     private void setupGoogleSignIn() {
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestScopes(new Scope(DriveScopes.DRIVE_FILE))
@@ -175,7 +207,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
+    /**
+     * Queries the Google Drive account to verify the current sign-in status.
+     * If the user is signed in, this method sets up the Drive API client.
+     */
     private void checkGoogleDriveSignInStatus() {
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
         SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
@@ -190,7 +225,12 @@ public class MainActivity extends AppCompatActivity {
             cloudImage.setImageResource(R.drawable.clouddisable); // Set image indicating not connected
         }
     }
-
+    /**
+     * Prompts the user to set a password for securing the backup file.
+     * This method displays a dialog with a password input field, validates the input,
+     * and stores the password securely in SharedPreferences.
+     * Once the password is stored, it starts the backup worker for Google Drive backups.
+     */
     private void promptForPasswordAndStore() {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         builder.setTitle("Set Password for the File");
@@ -234,12 +274,24 @@ public class MainActivity extends AppCompatActivity {
 
         dialog.show();
     }
-
+    /**
+     * Initiates the Google Sign-In process to enable Google Drive backup functionality.
+     * This method launches the Google sign-in intent and waits for a result.
+     * The result is handled in onActivityResult().
+     */
     private void promptSignIn() {
         Intent signInIntent = googleSignInClient.getSignInIntent();
         startActivityForResult(signInIntent, REQUEST_SIGN_IN);
     }
-
+    /**
+     * Handles the result of the Google Sign-In process.
+     * This method is triggered after the user attempts to sign in to Google Drive.
+     * It processes the result of the sign-in attempt.
+     *
+     * @param requestCode The integer request code originally supplied to startActivityForResult().
+     * @param resultCode The integer result code returned by the child activity through its setResult().
+     * @param data An Intent, which can return result data to the caller.
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -248,7 +300,12 @@ public class MainActivity extends AppCompatActivity {
             handleSignInResult(task);
         }
     }
-
+    /**
+     * Processes the result of the Google Sign-In flow.
+     * If the sign-in was successful, it enables Google Drive backup.
+     *
+     * @param completedTask The completed task containing the result of the sign-in.
+     */
     private void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
         try {
             GoogleSignInAccount account = completedTask.getResult(ApiException.class);
@@ -259,7 +316,10 @@ public class MainActivity extends AppCompatActivity {
             Log.w("GoogleSignIn", "signInResult:failed code=" + e.getStatusCode());
         }
     }
-
+    /**
+     * Sets up the Google Drive service for handling file operations.
+     * This method configures the necessary API clients and permissions to interact with Google Drive.
+     */
     private void setupGoogleDriveService() {
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
         if (account != null) {
@@ -285,8 +345,11 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-
-
+    /**
+     * Initializes the views and UI components of the activity.
+     * This method sets up references to the ListView, ImageViews, and TextView elements in the layout.
+     * It also provides a Toast message to inform the user about accessing the User Manual.
+     */
     private void initializeViews() {
         passwordListView = findViewById(R.id.password_list);
         cloudImage = findViewById(R.id.cloud_image);
@@ -296,13 +359,20 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(this, "Click on CipherSafe to open the User Manual", Toast.LENGTH_SHORT).show();
 
     }
-
+    /**
+     * Sets up the local database using Room for storing and retrieving passwords.
+     * This method initializes the Room database and allows querying on the main thread.
+     * The database is named "passwords-db".
+     */
     private void setupDatabase() {
         db = Room.databaseBuilder(getApplicationContext(), AppDatabase.class, "passwords-db")
                 .allowMainThreadQueries()
                 .build();
     }
-
+    /**
+     * Initializes the WorkManager to handle periodic backups to Google Drive.
+     * This method schedules periodic backup tasks based on user subscription.
+     */
     private void startBackupWorker(String password) {
         saveDebugLogToFile("backup worker initiated");
 
@@ -317,7 +387,13 @@ public class MainActivity extends AppCompatActivity {
 
         WorkManager.getInstance(this).enqueue(backupWorkRequest);
     }
-
+    /**
+     * Saves the debug log message to a file named "BackupWorkerLog.txt" in the Downloads/CipherSafe directory.
+     * This method checks if the file already exists and appends the log message. If the file doesn't exist,
+     * it creates a new one. It handles file operations using the Android `ContentResolver` API.
+     *
+     * @param logMessage The log message to be saved or appended to the log file.
+     */
     private void saveDebugLogToFile(String logMessage) {
         String fileName = "BackupWorkerLog.txt"; // Single file to append logs
 
@@ -358,7 +434,11 @@ public class MainActivity extends AppCompatActivity {
             Log.e("BackupWorker", "Failed to save/update debug log", e);
         }
     }
-
+    /**
+     * Sets up the password list from the Room database and displays it in the ListView.
+     * This method retrieves all passwords from the database and prepares the data for the custom adapter.
+     * It also sets an OnItemClickListener to show password details when an item is clicked.
+     */
     private void setupPasswordList() {
         List<Password> passwords = db.passwordDao().getAll();
         List<String[]> passwordDataList = new ArrayList<>();
@@ -382,7 +462,11 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-
+    /**
+     * Loads passwords from the Room database and updates the ListView.
+     * This method retrieves the passwords from the database and updates the adapter's data.
+     * If the adapter is null, it initializes the adapter and sets it to the ListView.
+     */
     private void loadPasswords() {
         List<Password> passwords = db.passwordDao().getAll();
 
@@ -400,7 +484,14 @@ public class MainActivity extends AppCompatActivity {
             passwordListView.setAdapter(adapter);
         }
     }
-
+    /**
+     * Displays the password details for the specified account.
+     * This method retrieves the password information from the database,
+     * decrypts the password, and shows it in a dialog. The dialog allows the user
+     * to edit or delete the password or simply view the details.
+     *
+     * @param accountName The name of the account for which the password details are being displayed.
+     */
     public void showPasswordDetails(String accountName) {
         Password password = db.passwordDao().findByAccountName(accountName);
 
@@ -448,8 +539,13 @@ public class MainActivity extends AppCompatActivity {
 
         builder.show();
     }
-
-
+    /**
+     * Displays a dialog to edit the details of an existing password entry.
+     * The dialog is pre-filled with the existing password information, allowing the user
+     * to modify the account name, username, password, and notes. The password is encrypted before saving.
+     *
+     * @param password The Password object containing the existing details of the password to be edited.
+     */
     private void showEditPasswordDialog(Password password) {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         builder.setTitle("Edit Password");
@@ -507,8 +603,16 @@ public class MainActivity extends AppCompatActivity {
 
         builder.show();
     }
-
-
+    /**
+     * Adds a new password entry to the database after validating the input.
+     * This method encrypts the password before storing it and handles errors in encryption.
+     * After inserting the password into the database, it updates the password list in the UI.
+     *
+     * @param accountName The name of the account associated with the password.
+     * @param username The username associated with the account.
+     * @param password The password to be encrypted and stored.
+     * @param notes Additional notes associated with the password.
+     */
     private void addPassword(String accountName, String username, String password, String notes) {
         if (accountName == null || accountName.isEmpty()) {
             Toast.makeText(this, "Please enter the account name.", Toast.LENGTH_SHORT).show();
@@ -545,8 +649,11 @@ public class MainActivity extends AppCompatActivity {
         // Update the adapter with the new data
         loadPasswords();
     }
-
-
+    /**
+     * Initiates the process of exporting stored passwords to an Excel file.
+     * If the Excel password is not set, the user is prompted to set a password before proceeding.
+     * Once the password is available, it calls the method to create the Excel file.
+     */
     private void exportToExcel() {
         SharedPreferences sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE);
         String password = sharedPreferences.getString("EXCEL_PASSWORD", null);
@@ -559,7 +666,13 @@ public class MainActivity extends AppCompatActivity {
 
         createExcelFile(password);
     }
-
+    /**
+     * Creates an encrypted Excel file that contains all the stored passwords.
+     * The Excel file includes columns for account name, username, password (decrypted), and notes.
+     * The file is saved in the Downloads/CipherSafe folder, and encryption is applied using the provided password.
+     *
+     * @param password The password used to encrypt the Excel file.
+     */
     private void createExcelFile(String password) {
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("Passwords");
@@ -621,61 +734,201 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Failed to export", Toast.LENGTH_SHORT).show();
         }
     }
-
+    /**
+     * Displays the Google Drive backup options dialog based on the user's subscription status.
+     * If the user is subscribed, the dialog shows options to enable or disable Google Drive backups.
+     * If the user is not subscribed, the dialog prompts the user to subscribe to the CipherSafe subscription.
+     */
     private void showBackupOptionsDialog() {
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
-        builder.setTitle("Google Drive Backup");
 
-        // Determine if backup is enabled
-        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
-        boolean isBackupEnabled = (account != null); // Check if Google Drive backup is enabled
+        if (isSubscribed) {
+            MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+            builder.setTitle("Google Drive Backup");
 
-        // Inflate a custom view for the dialog message (optional, but can enhance visuals)
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_options, null);
-        TextView messageTextView = dialogView.findViewById(R.id.backup_message);
+            // Determine if backup is enabled
+            GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
+            boolean isBackupEnabled = (account != null); // Check if Google Drive backup is enabled
 
-        if (isBackupEnabled) {
-            // If backup is enabled, offer the option to disable it
-            messageTextView.setText("Google Drive backups are currently enabled. Would you like to disable them?");
+            // Inflate a custom view for the dialog message (optional, but can enhance visuals)
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_options, null);
+            TextView messageTextView = dialogView.findViewById(R.id.backup_message);
 
-            builder.setPositiveButton("Disable", (dialog, which) -> {
-                // Ensure googleSignInClient is initialized before attempting to sign out
-                if (googleSignInClient == null) {
-                    googleSignInClient = GoogleSignIn.getClient(this, GoogleSignInOptions.DEFAULT_SIGN_IN);
-                }
+            if (isBackupEnabled) {
+                // If backup is enabled, offer the option to disable it
+                messageTextView.setText("Google Drive backups are currently enabled. Would you like to disable them?");
 
-                googleSignInClient.signOut()
-                        .addOnCompleteListener(this, task -> {
-                            // Handle sign-out
-                            cloudImage.setImageResource(R.drawable.clouddisable);
-                            Toast.makeText(MainActivity.this, "Google Drive backups disabled", Toast.LENGTH_SHORT).show();
-                        });
+                builder.setPositiveButton("Disable", (dialog, which) -> {
+                    // Ensure googleSignInClient is initialized before attempting to sign out
+                    if (googleSignInClient == null) {
+                        googleSignInClient = GoogleSignIn.getClient(this, GoogleSignInOptions.DEFAULT_SIGN_IN);
+                    }
 
-                dialog.dismiss();
-            });
+                    googleSignInClient.signOut()
+                            .addOnCompleteListener(this, task -> {
+                                // Handle sign-out
+                                cloudImage.setImageResource(R.drawable.clouddisable);
+                                Toast.makeText(MainActivity.this, "Google Drive backups disabled", Toast.LENGTH_SHORT).show();
+                            });
 
+                    dialog.dismiss();
+                });
+
+            } else {
+                // If backup is disabled, offer the option to enable it
+                messageTextView.setText("Google Drive backups are currently disabled. Would you like to enable them?");
+
+                builder.setPositiveButton("Enable", (dialog, which) -> {
+                    // Start the Google Drive sign-in process
+                    setupGoogleSignIn();
+                    dialog.dismiss();
+                });
+            }
+
+            // Cancel button for both cases
+            builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+
+            // Set the custom view for the dialog
+            builder.setView(dialogView);
+
+            // Show the dialog
+            AlertDialog dialog = builder.create();
+            dialog.show();
         } else {
-            // If backup is disabled, offer the option to enable it
-            messageTextView.setText("Google Drive backups are currently disabled. Would you like to enable them?");
+            // If not subscribed, show the CipherSafe subscription dialog
+            MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+            builder.setTitle("CipherSafe Subscription Required");
 
-            builder.setPositiveButton("Enable", (dialog, which) -> {
-                // Start the Google Drive sign-in process
-                setupGoogleSignIn();
+            // Inflate a custom view for the dialog message
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_options, null);
+            TextView messageTextView = dialogView.findViewById(R.id.backup_message);
+
+            // Set the message for the user
+            messageTextView.setText("To enable Google Drive backup functionality, you need to subscribe to CipherSafe.");
+
+            // Set up "Get it" button
+            builder.setPositiveButton("Get it", (dialog, which) -> {
+                // Handle subscription flow (e.g., redirect to subscription activity or Google Play)
+                promptSubscriptionPurchase();
                 dialog.dismiss();
             });
+
+            // Set up "Cancel" button
+            builder.setNegativeButton("Cancel", (dialog, which) -> {
+                // Simply dismiss the dialog
+                dialog.dismiss();
+            });
+
+            // Set the custom view to the dialog
+            builder.setView(dialogView);
+
+            // Show the dialog
+            builder.show();
         }
-
-        // Cancel button for both cases
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-
-        // Set the custom view for the dialog
-        builder.setView(dialogView);
-
-        // Show the dialog
-        AlertDialog dialog = builder.create();
-        dialog.show();
     }
 
+//    private void showBackupOptionsDialog() {
+//        if (isSubscribed) {
+////            showSubscriptionSuccessDialog();
+//            // if subscribed > proceed with google backup
+//            setupGoogleSignIn();
+//        } else {
+//            promptSubscriptionPurchase();
+//        }
+//    }
+    /**
+     * Prompts the user to purchase a CipherSafe subscription using Google Play Billing.
+     * This method queries the SKU details for the subscription product and launches the billing flow
+     * if the billing client is ready. It handles the SKU query and initiates the purchase process.
+     */
+    private void promptSubscriptionPurchase() {
+        if (billingClient != null && billingClient.isReady()) {
+            // Define the list of SKUs to query
+            List<String> skuList = new ArrayList<>();
+            skuList.add(SUBSCRIPTION_ID);  // Your product ID for the subscription
+
+            // Set up the SKU details query
+            SkuDetailsParams params = SkuDetailsParams.newBuilder()
+                    .setSkusList(skuList)
+                    .setType(BillingClient.SkuType.SUBS)
+                    .build();
+
+            // Query for SKU details
+            billingClient.querySkuDetailsAsync(params, (billingResult, skuDetailsList) -> {
+                if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
+                    for (SkuDetails skuDetails : skuDetailsList) {
+                        // Get the SKU details for the subscription
+                        String price = skuDetails.getPrice();
+                        Log.d("BillingClient", "Price for subscription: " + price);
+
+                        // Launch the billing flow to purchase the subscription
+                        BillingFlowParams billingFlowParams = BillingFlowParams.newBuilder()
+                                .setSkuDetails(skuDetails)
+                                .build();
+                        billingClient.launchBillingFlow(MainActivity.this, billingFlowParams);
+                    }
+                } else {
+                    Log.e("BillingClient", "Failed to query SKU details: " + billingResult.getResponseCode());
+                }
+            });
+        } else {
+            Log.e("BillingClient", "Billing client is not ready to query SKU details.");
+        }
+    }
+    /**
+     * Handles the Google Play subscription purchase for the Google Drive backup.
+     * If the purchase is for the subscription ID, it marks the user as subscribed,
+     * updates the UI to reflect the cloud backup status, and starts the Google Drive backup process.
+     * If the purchase is not acknowledged, it sends an acknowledgment request to Google Play.
+     *
+     * @param purchase The purchase object that contains details of the user's subscription.
+     */
+    private void handlePurchase(Purchase purchase) {
+        if (purchase.getProducts().contains(SUBSCRIPTION_ID)) {
+            isSubscribed = true;
+            // Update cloud icon immediately
+            updateCloudIcon();
+            Log.d("SUB","SHOUDL change cloud and prompt setupgoogle");
+            // Start Google Drive backup process if subscribed
+            setupGoogleSignIn();
+            // Mark the purchase as acknowledged if not already acknowledged.
+            if (!purchase.isAcknowledged()) {
+                AcknowledgePurchaseParams acknowledgePurchaseParams =
+                        AcknowledgePurchaseParams.newBuilder()
+                                .setPurchaseToken(purchase.getPurchaseToken())
+                                .build();
+                billingClient.acknowledgePurchase(acknowledgePurchaseParams, billingResult -> {
+                    if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+                        Toast.makeText(this, "Subscription successful", Toast.LENGTH_SHORT).show();
+                        showSubscriptionSuccessDialog();
+                    }
+                });
+            }
+        }
+    }
+    /**
+     * Displays a dialog informing the user that the subscription was successful.
+     * This dialog notifies the user that Google Drive backups are now available.
+     * After the user dismisses the dialog, the Google Drive sign-in process is initiated.
+     */
+    private void showSubscriptionSuccessDialog() {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle("Subscription Successful");
+        builder.setMessage("You are now subscribed to Google Drive Backup. You can start backing up your passwords to Google Drive.");
+        builder.setPositiveButton("OK", (dialog, which) -> {
+            // Dismiss the dialog
+            dialog.dismiss();
+        });
+        builder.show();
+
+        setupGoogleSignIn();
+    }
+
+    /**
+     * Authenticates the user when the app starts using biometric or device credentials.
+     * It checks if the user has been authenticated before; if not, it shows a biometric prompt.
+     * If the authentication succeeds, the app is initialized, including setting up the database,
+     * password list, and buttons. If authentication fails, the app is closed.
+     */
     private void authenticateAppStart() {
         //Log.d("MainActivity", "Auth should be done");
 
@@ -732,11 +985,14 @@ public class MainActivity extends AppCompatActivity {
                         editor.putBoolean("IsAuthenticated", true);
                         editor.apply();
 
+
+
                         setupDatabase();
                         setupPasswordList();
                         setupButtonListeners();
                         passwordListView.setVisibility(View.VISIBLE);
                         checkGoogleDriveSignInStatus();
+
                     });
                 }
 
@@ -767,8 +1023,11 @@ public class MainActivity extends AppCompatActivity {
             checkGoogleDriveSignInStatus();
         }
     }
-
-
+    /**
+     * Sets up click listeners for various UI buttons in the activity.
+     * Includes listeners for adding a new password, exporting passwords to Excel,
+     * showing backup options for Google Drive, and opening the user manual.
+     */
     private void setupButtonListeners() {
         addPasswordImage.setOnClickListener(v -> showAddPasswordDialog());
 
@@ -787,7 +1046,23 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
     }
-
+    /**
+     * Updates the cloud icon in the UI based on the user's subscription status.
+     * If the user is subscribed, the icon indicates that Google Drive backup is enabled.
+     * If the user is not subscribed, the icon indicates that Google Drive backup is disabled.
+     */
+    private void updateCloudIcon() {
+        if (isSubscribed) {
+            cloudImage.setImageResource(R.drawable.cloudenable);  // Set the icon to indicate Google Drive is enabled
+        } else {
+            cloudImage.setImageResource(R.drawable.clouddisable);  // Set the icon to indicate Google Drive is disabled
+        }
+    }
+    /**
+     * Displays a dialog for adding a new password entry to the database.
+     * The dialog includes input fields for account name, username, password, and notes.
+     * It validates the input fields before adding the password to the database and dismissing the dialog.
+     */
     private void showAddPasswordDialog() {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         builder.setTitle("Add Password");
@@ -847,5 +1122,78 @@ public class MainActivity extends AppCompatActivity {
 
         dialog.show();
     }
+    /**
+     * Sets up the Google Play BillingClient for in-app purchases and subscriptions.
+     * This method initializes the billing client and sets a listener to handle updates
+     * on purchases, including successful purchases, user cancellations, or purchase failures.
+     */
+    private void setupBillingClient() {
+        billingClient = BillingClient.newBuilder(this)
+                .enablePendingPurchases()
+                .setListener(new PurchasesUpdatedListener() {
+                    @Override
+                    public void onPurchasesUpdated(BillingResult billingResult, @Nullable List<Purchase> purchases) {
+                        if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK && purchases != null) {
+                            for (Purchase purchase : purchases) {
+                                handlePurchase(purchase);
+                            }
+                        } else if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.USER_CANCELED) {
+                            Log.d("BillingClient", "User canceled the purchase.");
+                        } else {
+                            Log.e("BillingClient", "Purchase failed with code: " + billingResult.getResponseCode());
+                        }
+                    }
+                })
+                .build();
+    }
+    /**
+     * Starts the connection to the Google Play Billing service.
+     * Once the connection is established, the app is ready to handle in-app purchases and subscriptions.
+     * If the connection is successful, a log message is generated and a toast message is shown.
+     * If the connection fails, it logs an error message and handles disconnection scenarios.
+     */
+    private void startBillingConnection() {
+        billingClient.startConnection(new BillingClientStateListener() {
+            @Override
+            public void onBillingSetupFinished(BillingResult billingResult) {
+                if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
+                    // BillingClient is ready
+                    Log.d("BillingClient", "Billing Client setup finished. Ready to make purchases.");
+                    Toast.makeText(MainActivity.this, "Billing Client is connected!", Toast.LENGTH_SHORT).show();
+                } else {
+                    Log.e("BillingClient", "Billing setup failed with code: " + billingResult.getResponseCode());
+                }
+            }
+
+            @Override
+            public void onBillingServiceDisconnected() {
+                // Handle disconnection
+                Log.e("BillingClient", "Billing service disconnected.");
+                Toast.makeText(MainActivity.this, "Billing Client disconnected.", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+    /**
+     * Queries Google Play Billing to check if the user is subscribed
+     * to the Google Drive backup feature. It updates the UI and app functionality
+     * based on the subscription status.
+     */
+    private void querySubscriptionStatus() {
+        billingClient.queryPurchasesAsync(BillingClient.SkuType.SUBS, (billingResult, purchaseList) -> {
+            if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK && purchaseList != null) {
+                for (Purchase purchase : purchaseList) {
+                    if (purchase.getProducts().contains(SUBSCRIPTION_ID)) {
+                        isSubscribed = true;
+                        break;  // If the user is subscribed, we can stop checking further.
+                    }
+                }
+            }
+            Log.d("Billing", "Subscription status: " + isSubscribed);
+        });
+    }
+
+
+
+
 }
 

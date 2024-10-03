@@ -1,12 +1,7 @@
 package com.ciphersafe;
 
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.database.Cursor;
-import android.net.Uri;
-import android.provider.MediaStore;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -45,12 +40,21 @@ import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-
+/**
+ * BackupWorker is a custom worker that handles the backup of user data (passwords) to Google Drive.
+ * It uses Room to access local data and Google Drive API for cloud storage.
+ */
 public class BackupWorker extends Worker {
     private AppDatabase db;
     private String excelPassword;
     private SharedPreferences sharedPreferences;
 
+    /**
+     * Constructor for BackupWorker.
+     *
+     * @param context The context of the application.
+     * @param params  The parameters passed to the worker.
+     */
     public BackupWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
         setupDatabase(context);
@@ -59,7 +63,11 @@ public class BackupWorker extends Worker {
         excelPassword = params.getInputData().getString("EXCEL_PASSWORD");
         saveDebugLogToFile("File: BackupWorker Function: Worker Constructor"+" "+"Message: Worker has retrieved the password for the excel file");
     }
-
+    /**
+     * Initializes the Room database for accessing local data.
+     *
+     * @param context The application context.
+     */
     private void setupDatabase(Context context) {
         try {
             db = Room.databaseBuilder(context.getApplicationContext(), AppDatabase.class, "passwords-db")
@@ -71,6 +79,12 @@ public class BackupWorker extends Worker {
             saveDebugLogToFile("File: BackupWorker Function: setupDatabase"+" Message: An error occurred while initializing the database: " + e.getMessage());
         }
     }
+    /**
+     * The main function that performs the backup operation.
+     * It handles creating or updating backup files on Google Drive.
+     *
+     * @return Result of the work, either success or failure.
+     */
     @NonNull
     @Override
     public Result doWork() {
@@ -112,85 +126,60 @@ public class BackupWorker extends Worker {
             return Result.failure();
         }
     }
-//    private void saveDebugLogToFile(String logMessage) {
-//        String fileName = "BackupWorkerLog.txt"; // Single file to append logs
-//
-//        ContentResolver resolver = getApplicationContext().getContentResolver();
-//        Uri externalContentUri = MediaStore.Files.getContentUri("external");
-//
-//        // Query the Downloads folder to check if the file already exists
-//        String selection = MediaStore.MediaColumns.DISPLAY_NAME + "=?";
-//        String[] selectionArgs = new String[]{fileName};
-//
-//        Uri fileUri = null;
-//
-//        try (Cursor cursor = resolver.query(externalContentUri, new String[]{MediaStore.MediaColumns._ID}, selection, selectionArgs, null)) {
-//            if (cursor != null && cursor.moveToFirst()) {
-//                // File exists, retrieve its URI
-//                long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID));
-//                fileUri = Uri.withAppendedPath(externalContentUri, String.valueOf(id));
-//            }
-//        }
-//
-//        if (fileUri == null) {
-//            // File doesn't exist, create a new one
-//            ContentValues values = new ContentValues();
-//            values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
-//            values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
-//            values.put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/CipherSafe");
-//
-//            fileUri = resolver.insert(externalContentUri, values);
-//        }
-//
-//        try (OutputStream os = resolver.openOutputStream(fileUri, "wa")) { // "wa" is for write-append mode
-//            if (os != null) {
-//                os.write((logMessage + "\n").getBytes()); // Append log message with newline
-//                os.flush();
-//                Log.d("BackupWorker", "Debug log saved/updated in Downloads folder");
-//            }
-//        } catch (Exception e) {
-//            Log.e("BackupWorker", "Failed to save/update debug log", e);
-//        }
-//    }
-private void saveDebugLogToFile(String logMessage) {
-    String fileName = "BackupWorkerLog.txt"; // Single file to append logs
+    /**
+     * Saves a debug log message to a file in the cache directory.
+     *
+     * @param logMessage The message to be logged.
+     */
+    private void saveDebugLogToFile(String logMessage) {
+        String fileName = "BackupWorkerLog.txt"; // Single file to append logs
 
-    // Get device information
-    String deviceInfo = getDeviceInfo();
+        // Get device information
+        String deviceInfo = getDeviceInfo();
 
-    // Get the cache directory
-    java.io.File cacheDir = getApplicationContext().getCacheDir();
-    java.io.File logFile = new java.io.File(cacheDir, fileName);
+        // Get the cache directory
+        java.io.File cacheDir = getApplicationContext().getCacheDir();
+        java.io.File logFile = new java.io.File(cacheDir, fileName);
 
-    // Log to ensure the cache directory exists
-    if (!cacheDir.exists()) {
-        Log.e("BackupWorker", "Cache directory does not exist. Trying to create it...");
-        if (!cacheDir.mkdirs()) {
-            Log.e("BackupWorker", "Failed to create cache directory.");
-            return; // Abort if the directory couldn't be created
+        // Log to ensure the cache directory exists
+        if (!cacheDir.exists()) {
+            Log.e("BackupWorker", "Cache directory does not exist. Trying to create it...");
+            if (!cacheDir.mkdirs()) {
+                Log.e("BackupWorker", "Failed to create cache directory.");
+                return; // Abort if the directory couldn't be created
+            }
+        }
+
+        Log.d("BackupWorker", "Cache directory path: " + cacheDir.getAbsolutePath());
+
+        try (FileWriter fw = new FileWriter(logFile, true)) { // 'true' for append mode
+            String timestampedMessage = "[" + getCurrentTimestamp() + "] " + deviceInfo + logMessage + "\n";
+            fw.write(timestampedMessage);
+            fw.flush();
+            Log.d("BackupWorker", "Debug log saved/updated in cache directory: " + logFile.getAbsolutePath());
+        } catch (IOException e) {
+            Log.e("BackupWorker", "Failed to save/update debug log in cache directory: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    Log.d("BackupWorker", "Cache directory path: " + cacheDir.getAbsolutePath());
-
-    try (FileWriter fw = new FileWriter(logFile, true)) { // 'true' for append mode
-        String timestampedMessage = "[" + getCurrentTimestamp() + "] " + deviceInfo + logMessage + "\n";
-        fw.write(timestampedMessage);
-        fw.flush();
-        Log.d("BackupWorker", "Debug log saved/updated in cache directory: " + logFile.getAbsolutePath());
-    } catch (IOException e) {
-        Log.e("BackupWorker", "Failed to save/update debug log in cache directory: " + e.getMessage());
-        e.printStackTrace();
-    }
-}
-
     // Helper method to get the current timestamp
+    /**
+     * Helper method to get the current timestamp.
+     *
+     * @return A string representing the current timestamp.
+     */
     private String getCurrentTimestamp() {
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
         return sdf.format(new java.util.Date());
     }
 
     // Helper method to get device information
+    /**
+     * Helper method to get device information such as Android version, phone model, and Wi-Fi status.
+     *
+     * @return A string containing the device information.
+     */
     private String getDeviceInfo() {
         StringBuilder deviceInfo = new StringBuilder();
         deviceInfo.append("Device Info: \n");
@@ -215,7 +204,13 @@ private void saveDebugLogToFile(String logMessage) {
 
         return deviceInfo.toString();
     }
-
+    /**
+     * Creates an encrypted Excel file containing the user's passwords.
+     *
+     * @param password The password used for encrypting the file.
+     * @param baos     The output stream to which the Excel file will be written.
+     * @throws IOException If an error occurs while creating or encrypting the file.
+     */
     private void createExcelFile(String password, ByteArrayOutputStream baos) throws IOException {
         saveDebugLogToFile("File: BackupWorker Function: createExcelFile"+" Message: Worker is creating an excel file");
 
@@ -275,6 +270,14 @@ private void saveDebugLogToFile(String logMessage) {
         fs.writeFilesystem(baos);
         saveDebugLogToFile("File: BackupWorker Function: createExcelFile"+" Message: Successfully encrypted the Excel file");
     }
+    /**
+     * Reads all bytes from a ByteArrayInputStream and returns them as a byte array.
+     * This method reads the input stream into a buffer and returns the complete byte array.
+     *
+     * @param bais The ByteArrayInputStream to read from.
+     * @return A byte array containing all the bytes read from the input stream.
+     * @throws IOException If an error occurs while reading the input stream.
+     */
     private byte[] readAllBytesCompat(ByteArrayInputStream bais) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         int nRead;
@@ -287,51 +290,15 @@ private void saveDebugLogToFile(String logMessage) {
         buffer.flush();
         return buffer.toByteArray();
     }
-
-
-//    private String uploadFileToGoogleDrive(String fileName, ByteArrayInputStream bais, GoogleSignInAccount account) throws IOException {
-//        saveDebugLogToFile("File: BackupWorker Function: uploadFileToGoogleDrive"+" Message: Worker has started googleDriveUpload");
-//
-//    byte[] fileBytes = readAllBytesCompat(bais);
-//
-//    GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
-//            getApplicationContext(), Collections.singleton(DriveScopes.DRIVE_FILE));
-//    credential.setSelectedAccount(account.getAccount());
-//
-//    Drive googleDriveService = new Drive.Builder(
-//            AndroidHttp.newCompatibleTransport(),
-//            new GsonFactory(),
-//            credential)
-//            .setApplicationName("PasswordManager")
-//            .build();
-//
-//    // Check if "cipherSafe" directory exists
-//    String cipherSafeFolderId = getOrCreateCipherSafeFolder(googleDriveService);
-//
-//    // Create file metadata with the folder ID
-//    File fileMetadata = new File();
-//    fileMetadata.setName(fileName);
-//    fileMetadata.setParents(Collections.singletonList(cipherSafeFolderId));
-//
-//    ByteArrayContent mediaContent = new ByteArrayContent("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileBytes);
-//
-//    File file = googleDriveService.files().create(fileMetadata, mediaContent)
-//            .setFields("id")
-//            .execute();
-//
-//    // Set permissions to make the file private or restricted
-//    Permission permission = new Permission()
-//            .setType("user")
-//            .setRole("writer")
-//            .setEmailAddress(account.getEmail());
-//
-//    googleDriveService.permissions().create(file.getId(), permission).execute();
-//
-//    Log.d("BackupWorker", "File uploaded to Google Drive: " + file.getId());
-//
-//    return file.getId();
-//
-//}
+    /**
+     * Uploads a file to Google Drive. If successful, the method returns the file ID of the uploaded file.
+     *
+     * @param fileName The name of the file to be uploaded.
+     * @param bais     The ByteArrayInputStream containing the file data to be uploaded.
+     * @param account  The GoogleSignInAccount representing the signed-in Google account.
+     * @return The file ID of the uploaded file on Google Drive, or null if the upload fails.
+     * @throws IOException If an error occurs during file upload or Google Drive API interaction.
+     */
     private String uploadFileToGoogleDrive(String fileName, ByteArrayInputStream bais, GoogleSignInAccount account) throws IOException {
         // Log that the worker has started
         saveDebugLogToFile("File: BackupWorker Function: uploadFileToGoogleDrive Message: Worker has started googleDriveUpload");
@@ -399,132 +366,79 @@ private void saveDebugLogToFile(String logMessage) {
         }
         return fileId; // Return the file ID or null if upload failed
     }
+    /**
+     * Updates an existing file on Google Drive with new data. If successful, the file is updated with the new content.
+     *
+     * @param fileId  The ID of the file on Google Drive to be updated.
+     * @param bais    The ByteArrayInputStream containing the updated file data.
+     * @param account The GoogleSignInAccount representing the signed-in Google account.
+     * @throws IOException If an error occurs during file update or Google Drive API interaction.
+     */
+    private void updateFileOnGoogleDrive(String fileId, ByteArrayInputStream bais, GoogleSignInAccount account) throws IOException {
+        // Log that the worker has started
+        saveDebugLogToFile("File: BackupWorker Function: updateFileOnGoogleDrive Message: Worker has started google drive file updation");
 
-//    private void updateFileOnGoogleDrive(String fileId, ByteArrayInputStream bais, GoogleSignInAccount account) throws IOException {
-//
-//        saveDebugLogToFile("File: BackupWorker Function: updateFileOnGoogleDrive Message: Worker has started google drive file updation");
-//        //saveDebugLogToFile("Starting update of file with ID: " + fileId);
-//        byte[] fileBytes = readAllBytesCompat(bais);
-//
-//        GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
-//                getApplicationContext(), Collections.singleton(DriveScopes.DRIVE_FILE));
-//        credential.setSelectedAccount(account.getAccount());
-//
-//        Drive googleDriveService = new Drive.Builder(
-//                AndroidHttp.newCompatibleTransport(),
-//                new GsonFactory(),
-//                credential)
-//                .setApplicationName("PasswordManager")
-//                .build();
-//
-//        // Check if "cipherSafe" directory exists
-//        String cipherSafeFolderId = getOrCreateCipherSafeFolder(googleDriveService);
-//
-//        // Update the file content
-//        ByteArrayContent mediaContent = new ByteArrayContent("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileBytes);
-//
-//        File file = googleDriveService.files().update(fileId, null, mediaContent)
-//                .execute();
-//
-//        // If the file isn't already in the "cipherSafe" folder, move it there
-//        if (!file.getParents().contains(cipherSafeFolderId)) {
-//            googleDriveService.files().update(fileId, null)
-//                    .setAddParents(cipherSafeFolderId)
-//                    .setRemoveParents(file.getParents().get(0)) // assuming there's only one parent
-//                    .setFields("id, parents")
-//                    .execute();
-//        }
-//
-//        Log.d("BackupWorker", "File updated and moved to cipherSafe folder on Google Drive: " + file.getId());
-//        saveDebugLogToFile("File updated on Google Drive with ID: " + fileId);
-//
-//    }
-private void updateFileOnGoogleDrive(String fileId, ByteArrayInputStream bais, GoogleSignInAccount account) throws IOException {
-    // Log that the worker has started
-    saveDebugLogToFile("File: BackupWorker Function: updateFileOnGoogleDrive Message: Worker has started google drive file updation");
+        try {
+            // Read file bytes from input stream
+            byte[] fileBytes = readAllBytesCompat(bais);
 
-    try {
-        // Read file bytes from input stream
-        byte[] fileBytes = readAllBytesCompat(bais);
+            // Set up Google Drive credentials
+            GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
+                    getApplicationContext(), Collections.singleton(DriveScopes.DRIVE_FILE));
+            credential.setSelectedAccount(account.getAccount());
 
-        // Set up Google Drive credentials
-        GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(
-                getApplicationContext(), Collections.singleton(DriveScopes.DRIVE_FILE));
-        credential.setSelectedAccount(account.getAccount());
+            // Create Google Drive service
+            Drive googleDriveService = new Drive.Builder(
+                    AndroidHttp.newCompatibleTransport(),
+                    new GsonFactory(),
+                    credential)
+                    .setApplicationName("PasswordManager")
+                    .build();
 
-        // Create Google Drive service
-        Drive googleDriveService = new Drive.Builder(
-                AndroidHttp.newCompatibleTransport(),
-                new GsonFactory(),
-                credential)
-                .setApplicationName("PasswordManager")
-                .build();
+            // Check if "cipherSafe" directory exists
+            String cipherSafeFolderId = getOrCreateCipherSafeFolder(googleDriveService);
 
-        // Check if "cipherSafe" directory exists
-        String cipherSafeFolderId = getOrCreateCipherSafeFolder(googleDriveService);
+            // Update the file content
+            ByteArrayContent mediaContent = new ByteArrayContent("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileBytes);
 
-        // Update the file content
-        ByteArrayContent mediaContent = new ByteArrayContent("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileBytes);
-
-        // Update the file on Google Drive
-        File file = googleDriveService.files().update(fileId, null, mediaContent)
-                .execute();
-
-        // If the file isn't already in the "cipherSafe" folder, move it there
-        if (!file.getParents().contains(cipherSafeFolderId)) {
-            googleDriveService.files().update(fileId, null)
-                    .setAddParents(cipherSafeFolderId)
-                    .setRemoveParents(file.getParents().get(0)) // assuming there's only one parent
-                    .setFields("id, parents")
+            // Update the file on Google Drive
+            File file = googleDriveService.files().update(fileId, null, mediaContent)
                     .execute();
+
+            // If the file isn't already in the "cipherSafe" folder, move it there
+            if (!file.getParents().contains(cipherSafeFolderId)) {
+                googleDriveService.files().update(fileId, null)
+                        .setAddParents(cipherSafeFolderId)
+                        .setRemoveParents(file.getParents().get(0)) // assuming there's only one parent
+                        .setFields("id, parents")
+                        .execute();
+            }
+
+            Log.d("BackupWorker", "File updated and moved to cipherSafe folder on Google Drive: " + file.getId());
+            //saveDebugLogToFile("File updated on Google Drive with ID: " + fileId);
+            saveDebugLogToFile("File: BackupWorker Function: updateFileOnGoogleDrive Message: Worker has successfully updated the file");
+
+        } catch (GoogleJsonResponseException e) {
+            Log.e("BackupWorker", "Google Drive API error during update: " + e.getDetails(), e);
+            saveDebugLogToFile("File: BackupWorker Function: updateFileOnGoogleDrive Message: GoogleJsonResponseException occurred during file update");
+
+        } catch (IOException e) {
+            Log.e("BackupWorker", "IO Exception occurred during file update: " + e.getMessage(), e);
+            saveDebugLogToFile("File: BackupWorker Function: updateFileOnGoogleDrive Message: IOException occurred during file update");
+            throw e; // Re-throw the IOException to propagate it up
+
+        } catch (Exception e) {
+            Log.e("BackupWorker", "Unexpected error occurred during file update: " + e.getMessage(), e);
+            saveDebugLogToFile("File: BackupWorker Function: updateFileOnGoogleDrive Message: Unexpected error occurred during file update");
         }
-
-        Log.d("BackupWorker", "File updated and moved to cipherSafe folder on Google Drive: " + file.getId());
-        //saveDebugLogToFile("File updated on Google Drive with ID: " + fileId);
-        saveDebugLogToFile("File: BackupWorker Function: updateFileOnGoogleDrive Message: Worker has successfully updated the file");
-
-    } catch (GoogleJsonResponseException e) {
-        Log.e("BackupWorker", "Google Drive API error during update: " + e.getDetails(), e);
-        saveDebugLogToFile("File: BackupWorker Function: updateFileOnGoogleDrive Message: GoogleJsonResponseException occurred during file update");
-
-    } catch (IOException e) {
-        Log.e("BackupWorker", "IO Exception occurred during file update: " + e.getMessage(), e);
-        saveDebugLogToFile("File: BackupWorker Function: updateFileOnGoogleDrive Message: IOException occurred during file update");
-        throw e; // Re-throw the IOException to propagate it up
-
-    } catch (Exception e) {
-        Log.e("BackupWorker", "Unexpected error occurred during file update: " + e.getMessage(), e);
-        saveDebugLogToFile("File: BackupWorker Function: updateFileOnGoogleDrive Message: Unexpected error occurred during file update");
     }
-}
-
-
-//    private String getOrCreateCipherSafeFolder(Drive googleDriveService) throws IOException {
-//        // Check if the "cipherSafe" folder already exists
-//        FileList result = googleDriveService.files().list()
-//                .setQ("mimeType='application/vnd.google-apps.folder' and name='cipherSafe' and trashed=false")
-//                .setSpaces("drive")
-//                .setFields("files(id, name)")
-//                .execute();
-//
-//        if (result.getFiles().isEmpty()) {
-//            // Folder does not exist, create it
-//            File fileMetadata = new File();
-//            fileMetadata.setName("cipherSafe");
-//            fileMetadata.setMimeType("application/vnd.google-apps.folder");
-//
-//            File folder = googleDriveService.files().create(fileMetadata)
-//                    .setFields("id")
-//                    .execute();
-//
-//            Log.d("BackupWorker", "'cipherSafe' folder created with ID: " + folder.getId());
-//            return folder.getId();
-//        } else {
-//            // Folder exists, return its ID
-//            Log.d("BackupWorker", "'cipherSafe' folder already exists with ID: " + result.getFiles().get(0).getId());
-//            return result.getFiles().get(0).getId();
-//        }
-//    }
+    /**
+     * Retrieves the "cipherSafe" folder ID on Google Drive, creating the folder if it does not exist.
+     *
+     * @param googleDriveService The Google Drive service instance used to interact with Google Drive.
+     * @return The ID of the "cipherSafe" folder on Google Drive, or null if the folder could not be created or found.
+     * @throws IOException If an error occurs while checking or creating the folder on Google Drive.
+     */
     private String getOrCreateCipherSafeFolder(Drive googleDriveService) throws IOException {
         saveDebugLogToFile("File: BackupWorker Function: getOrCreateCipherSafeFolder Message: -");
 
