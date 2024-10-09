@@ -22,8 +22,8 @@ android {
         applicationId = "com.ciphersafe"
         minSdk = 29
         targetSdk = 34
-        versionCode = 11
-        versionName = "1.2.11"
+        versionCode = 13
+        versionName = "1.2.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

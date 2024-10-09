@@ -25,12 +25,7 @@ public class EncryptionUtils {
     private static final String KEYSTORE_ALIAS = "CipherSafeKey";
     private static final String KEYSTORE_PROVIDER = "AndroidKeyStore";
 
-    /**
-     * Generates or retrieves a securely stored AES key using Android's Keystore system.
-     *
-     * @return The secret key used for encryption and decryption.
-     * @throws Exception If the key generation or retrieval fails.
-     */
+    // Generates or retrieves a securely stored AES key using Android's Keystore system
     private static SecretKey getSecretKey() throws Exception {
         KeyStore keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER);
         keyStore.load(null);
@@ -52,24 +47,16 @@ public class EncryptionUtils {
         return ((KeyStore.SecretKeyEntry) keyStore.getEntry(KEYSTORE_ALIAS, null)).getSecretKey();
     }
 
-    /**
-     * Encrypts a given string using AES GCM with an Initialization Vector (IV) and returns the encrypted string in Base64 format.
-     *
-     * @param data The plain text data to be encrypted.
-     * @return The encrypted string encoded in Base64 format.
-     * @throws Exception If an error occurs during the encryption process.
-     */
+    // Encrypts data with AES GCM and returns the encrypted string in Base64 format
     public static String encrypt(String data) throws Exception {
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         SecretKey secretKey = getSecretKey();
 
-        // Generate a random 12-byte IV
-        byte[] iv = new byte[12];
-        SecureRandom secureRandom = new SecureRandom();
-        secureRandom.nextBytes(iv);
+        // Initialize Cipher and let it generate the IV automatically
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
 
-        GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, gcmSpec);
+        // Get the generated IV
+        byte[] iv = cipher.getIV();
 
         byte[] encryptedBytes = cipher.doFinal(data.getBytes());
 
@@ -81,13 +68,7 @@ public class EncryptionUtils {
         return Base64.encodeToString(ivAndEncryptedData, Base64.DEFAULT);
     }
 
-    /**
-     * Decrypts a given Base64 encoded encrypted string using AES GCM with an Initialization Vector (IV) and returns the decrypted string.
-     *
-     * @param encryptedData The encrypted string in Base64 format to be decrypted.
-     * @return The decrypted plain text string.
-     * @throws Exception If an error occurs during the decryption process.
-     */
+    // Decrypts the Base64 encoded encrypted string using AES GCM
     public static String decrypt(String encryptedData) throws Exception {
         byte[] ivAndEncryptedData = Base64.decode(encryptedData, Base64.DEFAULT);
 
@@ -103,6 +84,7 @@ public class EncryptionUtils {
         SecretKey secretKey = getSecretKey();
         GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
 
+        // Initialize Cipher for decryption using the extracted IV
         cipher.init(Cipher.DECRYPT_MODE, secretKey, gcmSpec);
 
         byte[] decryptedBytes = cipher.doFinal(encryptedBytes);

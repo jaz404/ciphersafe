@@ -8,6 +8,8 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.File;
+import java.util.ArrayList;
+
 /**
  * UserManualActivity displays the user manual for the CipherSafe Password Manager app.
  * It provides options for users to read the manual, close the activity, and send log files for troubleshooting.
@@ -105,41 +107,58 @@ public class UserManualActivity extends AppCompatActivity {
      */
     private void sendLogFile() {
         try {
-            // Get the log file from the cache directory
+            // Get the log files from the cache directory
             File cacheDir = getCacheDir();
-            File logFile = new File(cacheDir, "BackupWorkerLog.txt");
+            File backupWorkerLogFile = new File(cacheDir, "BackupWorkerLog.txt");
+            File mainActivityLogFile = new File(cacheDir, "MainActivity.txt");
 
-            if (logFile.exists()) {
-                // Create a URI using FileProvider
+            // List to hold URIs of log files
+            ArrayList<Uri> fileUris = new ArrayList<>();
+
+            // Check if BackupWorkerLog file exists and add to the list
+            if (backupWorkerLogFile.exists()) {
                 Uri fileUri = androidx.core.content.FileProvider.getUriForFile(
                         this,
                         getApplicationContext().getPackageName() + ".provider",
-                        logFile);
+                        backupWorkerLogFile);
+                fileUris.add(fileUri);
+            }
 
+            // Check if MainActivity log file exists and add to the list
+            if (mainActivityLogFile.exists()) {
+                Uri fileUri = androidx.core.content.FileProvider.getUriForFile(
+                        this,
+                        getApplicationContext().getPackageName() + ".provider",
+                        mainActivityLogFile);
+                fileUris.add(fileUri);
+            }
+
+            // If there are any log files to send, proceed with the email intent
+            if (!fileUris.isEmpty()) {
                 // Create an email intent, explicitly targeting Gmail
-                Intent emailIntent = new Intent(Intent.ACTION_SEND);
+                Intent emailIntent = new Intent(Intent.ACTION_SEND_MULTIPLE);
                 emailIntent.setType("text/plain");
                 emailIntent.putExtra(Intent.EXTRA_EMAIL, new String[]{"chhabrajaspreet14@gmail.com"});
-                emailIntent.putExtra(Intent.EXTRA_SUBJECT, "Log File from CipherSafe");
-                emailIntent.putExtra(Intent.EXTRA_TEXT, "Please find the attached log file for review.");
-                emailIntent.putExtra(Intent.EXTRA_STREAM, fileUri);
+                emailIntent.putExtra(Intent.EXTRA_SUBJECT, "Log Files from CipherSafe");
+                emailIntent.putExtra(Intent.EXTRA_TEXT, "Please find the attached log files for review.");
+                emailIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, fileUris);
 
                 // Explicitly set Gmail as the package to handle the intent
                 emailIntent.setPackage("com.google.android.gm");
 
-                // Grant temporary read permission to Gmail for the URI
+                // Grant temporary read permission to Gmail for the URIs
                 emailIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
                 // Start the Gmail app with the email intent
                 startActivity(emailIntent);
 
             } else {
-                // Log file doesn't exist
-                android.widget.Toast.makeText(this, "Log file not found", android.widget.Toast.LENGTH_SHORT).show();
+                // No log files found
+                android.widget.Toast.makeText(this, "No log files found", android.widget.Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            android.widget.Toast.makeText(this, "Failed to send log file", android.widget.Toast.LENGTH_SHORT).show();
+            android.widget.Toast.makeText(this, "Failed to send log files", android.widget.Toast.LENGTH_SHORT).show();
         }
     }
 
